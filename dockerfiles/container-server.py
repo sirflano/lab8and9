@@ -41,8 +41,11 @@ def containers_index():
     curl -s -X GET -H 'Accept: application/json' http://localhost:8080/containers?state=running | python -mjson.tool
 
     """
-
-    resp = ''
+    if request.args.get('state') == 'running':
+	output = docker('ps')
+    else:
+	output = docker('ps', '-a')
+    resp = json.dumps(docker_ps_to_array(output))
     return Response(response=resp, mimetype="application/json")
 
 @app.route('/images', methods=['GET'])
@@ -52,8 +55,8 @@ def images_index():
     
     Complete the code below generating a valid response. 
     """
-    
-    resp = ''
+    output = docker('images')
+    resp = json.dumps(docker_images_to_array(output))
     return Response(response=resp, mimetype="application/json")
 
 @app.route('/containers/<id>', methods=['GET'])
@@ -62,10 +65,9 @@ def containers_show(id):
     Inspect specific container
 
     """
-
-    resp = ''
-
-    return Response(response=resp, mimetype="application/json")
+    output = docker('inspect',id)
+    """resp = json.dumps(docker_container(output))"""
+    return Response(response=output, mimetype="application/json")
 
 @app.route('/containers/<id>/logs', methods=['GET'])
 def containers_log(id):
@@ -73,7 +75,8 @@ def containers_log(id):
     Dump specific container logs
 
     """
-    resp = ''
+    output = docker('logs',id)
+    resp = json.dumps(docker_logs_to_object(id, output))
     return Response(response=resp, mimetype="application/json")
 
 
@@ -92,7 +95,8 @@ def containers_remove(id):
     Delete a specific container - must be already stopped/killed
 
     """
-    resp = ''
+    docker ('rm', id)
+    resp = '{"id": "%s"}' % id
     return Response(response=resp, mimetype="application/json")
 
 @app.route('/containers', methods=['DELETE'])
@@ -101,7 +105,9 @@ def containers_remove_all():
     Force remove all containers - dangrous!
 
     """
-    resp = ''
+    docker ('stop ps -a -q')
+    docker ('rm ps -a -q')
+    resp = 'success'
     return Response(response=resp, mimetype="application/json")
 
 @app.route('/images', methods=['DELETE'])
@@ -110,8 +116,8 @@ def images_remove_all():
     Force remove all images - dangrous!
 
     """
- 
-    resp = ''
+    docker ('rmi ps -a -q')
+    resp = 'success'
     return Response(response=resp, mimetype="application/json")
 
 
@@ -162,6 +168,8 @@ def containers_update(id):
         state = body['state']
         if state == 'running':
             docker('restart', id)
+	else:
+	    docker('run', id)
     except:
         pass
 
@@ -176,7 +184,12 @@ def images_update(id):
     curl -s -X PATCH -H 'Content-Type: application/json' http://localhost:8080/images/7f2619ed1768 -d '{"tag": "test:1.0"}'
 
     """
-    resp = ''
+    body = request.get_json(force=True)
+    try:
+	docker('tag', tag, id)
+    except:
+	pass	
+    resp = '{"id": "%s"}' %id
     return Response(response=resp, mimetype="application/json")
 
 
